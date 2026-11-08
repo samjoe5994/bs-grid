@@ -1,6 +1,13 @@
-# @blocksurvey/bs-grid
+# @samjoe5994/bs-grid
 
-A lightweight Angular data grid with **zero runtime dependencies** — no third-party packages, just Angular and RxJS.
+[![npm version](https://img.shields.io/npm/v/@samjoe5994/bs-grid.svg)](https://www.npmjs.com/package/@samjoe5994/bs-grid)
+[![npm downloads](https://img.shields.io/npm/dm/@samjoe5994/bs-grid.svg)](https://www.npmjs.com/package/@samjoe5994/bs-grid)
+[![CI](https://github.com/samjoe5994/bs-grid/actions/workflows/ci.yml/badge.svg)](https://github.com/samjoe5994/bs-grid/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/npm/l/@samjoe5994/bs-grid.svg)](https://github.com/samjoe5994/bs-grid/blob/main/LICENSE)
+
+**[Live demo](https://samjoe5994.github.io/bs-grid/)** · **[GitHub](https://github.com/samjoe5994/bs-grid)** · **[Changelog](https://github.com/samjoe5994/bs-grid/blob/main/CHANGELOG.md)** · **[Report an issue](https://github.com/samjoe5994/bs-grid/issues)**
+
+A lightweight Angular data grid with **zero runtime dependencies**. It needs nothing beyond Angular and RxJS.
 
 Built at [BlockSurvey](https://blocksurvey.io) to replace AG Grid on production screens rendering tens of thousands of survey responses. The `@Input`/`@Output` and `GridApi` surface deliberately mirrors AG Grid's, so migrating an existing grid is mostly a rename.
 
@@ -25,10 +32,30 @@ MIT licensed. No license key, no watermark, no enterprise tier.
 ## Install
 
 ```bash
-npm install @blocksurvey/bs-grid
+npm install @samjoe5994/bs-grid
 ```
 
 Peer deps: Angular 20, 21 or 22 (`@angular/core`, `@angular/common`, `@angular/forms`) and `rxjs` ^7.8.
+
+| Angular | Status |
+| --- | --- |
+| 21 | Tested: production build, SSR prerender and hydration |
+| 20 | Tested: SSR render |
+| 22 | Allowed by the peer range, not tested yet |
+
+## Migrating from AG Grid
+
+Most screens move over by changing the imports and the tag. Column definitions, events and `GridApi` calls keep their AG Grid names.
+
+| AG Grid | bs-grid |
+| --- | --- |
+| `<ag-grid-angular>` | `<bs-grid>` |
+| `AgGridAngular` / `AgGridModule` | `BsGridComponent` (standalone) / `BsGridModule` |
+| `ColDef`, `GridApi`, `GridReadyEvent` from `ag-grid-community` | the same names from `@samjoe5994/bs-grid` |
+| `ICellRendererAngularComp`, `ICellEditorAngularComp` from `ag-grid-angular` | the same names from `@samjoe5994/bs-grid` |
+| `agNumberColumnFilter`, `agDateColumnFilter`, `agSetColumnFilter`, `agSelectCellEditor`, `agNumberCellEditor`, … | the same string keys |
+
+Check [Not yet supported](#not-yet-supported) before you migrate a screen that uses Enterprise-only row models.
 
 ## Quickstart
 
@@ -36,7 +63,7 @@ Standalone component:
 
 ```ts
 import { Component } from '@angular/core';
-import { BsGridComponent, ColDef, GridApi, GridReadyEvent } from '@blocksurvey/bs-grid';
+import { BsGridComponent, ColDef, GridApi, GridReadyEvent } from '@samjoe5994/bs-grid';
 
 @Component({
   selector: 'app-people',
@@ -77,7 +104,7 @@ export class PeopleComponent {
 NgModule app:
 
 ```ts
-import { BsGridModule } from '@blocksurvey/bs-grid';
+import { BsGridModule } from '@samjoe5994/bs-grid';
 
 @NgModule({ imports: [BsGridModule] })
 export class FeatureModule {}
@@ -105,7 +132,7 @@ Any Angular component implementing `ICellRendererAngularComp`:
 
 ```ts
 import { Component } from '@angular/core';
-import { ICellRendererAngularComp, BsCellParams } from '@blocksurvey/bs-grid';
+import { ICellRendererAngularComp, BsCellParams } from '@samjoe5994/bs-grid';
 
 @Component({ template: `<span class="badge">{{ value }}</span>` })
 export class BadgeRenderer implements ICellRendererAngularComp {
@@ -246,7 +273,7 @@ bs-grid {
 A dark theme ships with the package:
 
 ```json
-"styles": ["node_modules/@blocksurvey/bs-grid/styles/bs-grid-dark.css"]
+"styles": ["node_modules/@samjoe5994/bs-grid/styles/bs-grid-dark.css"]
 ```
 
 then put `class="bs-grid-dark"` on any ancestor.

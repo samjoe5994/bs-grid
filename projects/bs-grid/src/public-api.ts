@@ -1,5 +1,5 @@
 /*
- * Public API surface of @blocksurvey/bs-grid
+ * Public API surface of @samjoe5994/bs-grid
  */
 
 export { BsGridComponent } from './lib/bs-grid.component';

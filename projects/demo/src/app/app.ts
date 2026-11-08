@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import {
   BsCellParams, BsGridComponent, ColDef, GridApi, GridReadyEvent,
   ICellEditorAngularComp, ICellRendererAngularComp, PaginationChangedEvent,
-} from '@blocksurvey/bs-grid';
+} from '@samjoe5994/bs-grid';
 
 @Component({
   selector: 'demo-status-cell',

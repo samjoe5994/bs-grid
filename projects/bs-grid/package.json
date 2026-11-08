@@ -1,27 +1,50 @@
 {
-  "name": "@blocksurvey/bs-grid",
+  "name": "@samjoe5994/bs-grid",
   "version": "0.1.0",
-  "description": "Lightweight, dependency-free Angular data grid — virtual scrolling, range selection, filtering, sorting, cell renderers/editors, CSV export. MIT licensed.",
+  "description": "Fast, dependency-free Angular data grid: virtual scrolling, pinning, sorting, filtering, grouping, editing, range selection, clipboard, pagination, CSV/Excel export. MIT.",
   "keywords": [
     "angular",
     "angular-grid",
+    "angular-data-grid",
+    "angular-table",
+    "angular-datatable",
     "data-grid",
+    "datagrid",
     "datatable",
+    "data-table",
+    "grid",
     "table",
     "virtual-scroll",
-    "spreadsheet",
+    "virtualization",
+    "pagination",
+    "sorting",
+    "filtering",
+    "row-grouping",
+    "cell-editing",
+    "range-selection",
+    "clipboard",
     "csv-export",
-    "ag-grid-alternative"
+    "excel-export",
+    "xlsx",
+    "spreadsheet",
+    "pinned-columns",
+    "ssr",
+    "standalone-component",
+    "ag-grid-alternative",
+    "mit"
   ],
   "license": "MIT",
-  "author": "BlockSurvey",
-  "homepage": "https://github.com/blocksurvey/bs-grid#readme",
+  "author": {
+    "name": "BlockSurvey",
+    "url": "https://blocksurvey.io"
+  },
+  "homepage": "https://samjoe5994.github.io/bs-grid/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/blocksurvey/bs-grid.git"
+    "url": "git+https://github.com/samjoe5994/bs-grid.git"
   },
   "bugs": {
-    "url": "https://github.com/blocksurvey/bs-grid/issues"
+    "url": "https://github.com/samjoe5994/bs-grid/issues"
   },
   "peerDependencies": {
     "@angular/common": "^20.0.0 || ^21.0.0 || ^22.0.0",
