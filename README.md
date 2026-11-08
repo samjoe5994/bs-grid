@@ -1,59 +1,42 @@
-# BsGrid
+# bs-grid
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.17.
+Monorepo for **[@blocksurvey/bs-grid](https://www.npmjs.com/package/@blocksurvey/bs-grid)** — a zero-dependency Angular data grid, MIT licensed.
 
-## Development server
+Package docs (install, API, theming): [`projects/bs-grid/README.md`](projects/bs-grid/README.md).
 
-To start a local development server, run:
+## Layout
 
-```bash
-ng serve
+```
+projects/
+  bs-grid/     the published library
+  demo/        playground app (not published)
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Develop
 
 ```bash
-ng generate component component-name
+npm install
+npm run build:lib      # ng build bs-grid  -> dist/bs-grid
+npm start              # builds the lib, then serves the demo on :4200
+npm run watch:lib      # rebuild the lib on change (run alongside `ng serve demo`)
+npm test               # unit tests for the library
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+The demo imports the library through the `@blocksurvey/bs-grid` path mapping in `tsconfig.json`, which points at `dist/bs-grid` — so **build the library before serving the demo**.
+
+## Release
 
 ```bash
-ng generate --help
+npm run pack:lib       # build + npm pack, inspect the tarball before shipping
+npm run publish:lib    # build + npm publish from dist/bs-grid
 ```
 
-## Building
+Publishing runs from `dist/bs-grid`, never from the repo root. Bump `version` in `projects/bs-grid/package.json`, tag the commit, and push — the GitHub Actions workflow publishes on release using npm **trusted publishing (OIDC)**, so no npm token is stored in the repo.
 
-To build the project run:
+First release only: publish manually once to claim the name, then configure the trusted publisher on npmjs.com (org, repo, and the exact workflow filename `publish.yml`).
 
-```bash
-ng build
-```
+## Contributing
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Issues and PRs welcome. Keep the library dependency-free — the whole point is that installing it pulls in nothing but Angular.
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+MIT © BlockSurvey

@@ -1,0 +1,40 @@
+{
+  "name": "@blocksurvey/bs-grid",
+  "version": "0.1.0",
+  "description": "Lightweight, dependency-free Angular data grid — virtual scrolling, range selection, filtering, sorting, cell renderers/editors, CSV export. MIT licensed.",
+  "keywords": [
+    "angular",
+    "angular-grid",
+    "data-grid",
+    "datatable",
+    "table",
+    "virtual-scroll",
+    "spreadsheet",
+    "csv-export",
+    "ag-grid-alternative"
+  ],
+  "license": "MIT",
+  "author": "BlockSurvey",
+  "homepage": "https://github.com/blocksurvey/bs-grid#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/blocksurvey/bs-grid.git"
+  },
+  "bugs": {
+    "url": "https://github.com/blocksurvey/bs-grid/issues"
+  },
+  "peerDependencies": {
+    "@angular/common": "^20.0.0 || ^21.0.0 || ^22.0.0",
+    "@angular/core": "^20.0.0 || ^21.0.0 || ^22.0.0",
+    "@angular/forms": "^20.0.0 || ^21.0.0 || ^22.0.0",
+    "rxjs": "^7.8.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

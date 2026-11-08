@@ -1,0 +1,56 @@
+<div class="page" [class.bs-grid-dark]="dark">
+  <div>
+    <h1>@blocksurvey/bs-grid</h1>
+    <p class="sub">Zero-dependency Angular data grid: virtualized rows and columns, pinning, filtering, grouping, editing, range selection, CSV and Excel export.</p>
+  </div>
+
+  <div class="toolbar">
+    <button (click)="setRows(100)">100 rows</button>
+    <button (click)="setRows(1000)">1k rows</button>
+    <button (click)="setRows(50000)">50k rows</button>
+    <input placeholder="Quick filter…" [(ngModel)]="quickFilter" (input)="onQuickFilter()" />
+    <button (click)="groupBy('country')">Group by country</button>
+    <button (click)="groupBy(null)">Ungroup</button>
+    <button (click)="autoSize()">Auto-size</button>
+    <button (click)="resetColumns()">Reset columns</button>
+    <button (click)="exportCsv()">Export CSV</button>
+    <button (click)="exportExcel()">Export Excel</button>
+    <button (click)="paged = !paged">{{ paged ? 'Scroll' : 'Paginate' }}</button>
+    <button (click)="autoPageSize = !autoPageSize" [disabled]="!paged">Auto page size: {{ autoPageSize ? 'on' : 'off' }}</button>
+    <button (click)="dark = !dark">{{ dark ? 'Light' : 'Dark' }} theme</button>
+    <span class="spacer"></span>
+    <span class="count">{{ rowData.length | number }} rows · {{ selectedCount | number }} selected</span>
+  </div>
+
+  <div class="grid-host">
+    <bs-grid
+      [rowData]="rowData"
+      [columnDefs]="columnDefs"
+      [defaultColDef]="defaultColDef"
+      [getRowId]="getRowId"
+      [sideBar]="sideBar"
+      [statusBar]="statusBar"
+      [valueCache]="true"
+      [enableRangeSelection]="true"
+      [getContextMenuItems]="getContextMenuItems"
+      rowSelection="multiple"
+      [suppressRowClickSelection]="true"
+      [pagination]="paged"
+      [paginationPageSize]="20"
+      [paginationAutoPageSize]="autoPageSize"
+      (paginationChanged)="onPagination($event)"
+      (gridReady)="onReady($event)"
+      (selectionChanged)="onSelectionChanged()"
+      (cellValueChanged)="log('cellValueChanged ' + $event.colDef.field + ' → ' + $event.newValue)"
+      (sortChanged)="log('sortChanged')"
+      (filterChanged)="log('filterChanged')"
+      (columnResized)="log('columnResized')"
+      (columnMoved)="log('columnMoved')">
+    </bs-grid>
+  </div>
+
+  <div class="events" aria-live="polite">
+    <b>Events</b>
+    @for (e of events; track $index) { <span>{{ e }}</span> }
+  </div>
+</div>

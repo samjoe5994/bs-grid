@@ -1,0 +1,1156 @@
+// BsGrid — balham-like base theme (mirrors ag-theme-balham so the results-screen swap
+// is a near-zero visual diff). Unique bs-grid-* class prefix per the project's
+// Bootstrap-override policy (no Bootstrap/AG utility class is redefined).
+//
+// Pinning strategy (Phase 2): a single scroll viewport; the header row is
+// position:sticky top:0, and the left/right pinned regions are position:sticky
+// left/right:0. Sticky composes on both axes, so pinned header cells stay fixed in both
+// directions with zero JS scroll-sync.
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  // BlockSurvey grid theme — a mild, modern identity built straight from the brand system
+  // (ink #171717 · off-white #fafafa · primary blue #7f95d1 · Inter · soft rounding).
+  // The chrome stays calm and light ("not too dark"): a clean near-white header with brand-ink
+  // text over airy white rows. The brand blue is the ONE accent — it shows up only on
+  // interaction (sort, selection, checkbox, focus, active filter, editing), so the grid reads
+  // as unmistakably BlockSurvey without feeling heavy or dated. The periwinkle #7f95d1 is the
+  // primary UI blue (badges, links, help button); #6b84c7 is its deeper companion for the
+  // hover/pressed and high-contrast interactive states (pure periwinkle washes out on white).
+  --bs-grid-bg: #ffffff; // grid surface — rows, panels, menus, editors
+  --bs-grid-text-muted: #7f8c8d; // secondary chrome text (panel labels, counts, icons)
+  --bs-grid-row-active: #f2f6fd; // last-clicked (current) row, when not checkbox-selected
+  --bs-grid-control-border: #a0a8ae; // checkbox / small control outlines
+  --bs-grid-overlay-bg: rgba(255, 255, 255, 0.7); // loading overlay scrim
+  --bs-grid-group-bg: #f6f8fa; // row-group header rows
+  --bs-grid-border: #ececec; // soft hairline gridline (was slate-blue #d4dae1)
+  --bs-grid-border-strong: #e2e2e4; // header rule / pinned dividers — light, not heavy
+  --bs-grid-header-bg: #f7f7f8; // clean near-white header (mild, not grey-blue)
+  --bs-grid-header-text: #171717; // brand ink
+  --bs-grid-row-hover: #f6f8fb; // barely-there cool neutral on hover
+  --bs-grid-selected: #edf1fb; // soft brand-blue tint for selected rows
+  --bs-grid-pinned-bg: #fbfbfc;
+  --bs-grid-text: #2b2b2b; // softened brand ink (readable, not harsh black)
+  --bs-grid-accent: #7f95d1; // BlockSurvey primary blue (periwinkle)
+  --bs-grid-accent-strong: #6b84c7; // deeper companion for hover / pressed / contrast
+  --bs-grid-accent-soft: #eef1f9; // brand tint for soft fills (active filter, editable hover)
+  --bs-grid-font: 13px/1.4 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.bs-grid-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 8px; // brand rounding (matches .blocksurvey_primary_btn) — modern, not boxy
+  overflow: hidden;
+  // Offset parent for every popup (header menu, context menu, filter popup). Without this
+  // the popups' position:absolute would resolve against some arbitrary positioned ancestor
+  // in the host page (or a modal), landing them far from their anchor. See popupPosition().
+  position: relative;
+  font: var(--bs-grid-font);
+  color: var(--bs-grid-text);
+  background: var(--bs-grid-bg);
+  box-sizing: border-box;
+  // Focused programmatically on cell mousedown (so Ctrl+C / Shift+Arrow route to onGridKeyDown)
+  // — not part of normal tab order, so no visible ring needed.
+  &:focus {
+    outline: none;
+  }
+}
+
+.bs-grid-main {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+// Relative anchor for the empty/loading overlays: they must NOT live inside the scroll
+// viewport (absolute children of a scroller are anchored to the scroll origin and drift
+// out of view when a wide grid is scrolled horizontally).
+.bs-grid-body-wrap {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column; // viewport on top, fake horizontal scrollbar row below
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+}
+
+.bs-grid-viewport {
+  flex: 1 1 auto;
+  overflow: auto;
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+}
+
+// --- AG-parity horizontal scrollbar (webkit only; Firefox can't hide one axis, so it keeps
+// the native full-width bar and never shows the fake one) ---
+.bs-grid-hscroll {
+  display: none;
+}
+@supports selector(::-webkit-scrollbar) {
+  // Hide the viewport's native horizontal bar (scrolling itself stays native); restyle the
+  // now-custom vertical bar to the app's standard scrollbar theme (5px, transparent track,
+  // ink thumb .15/.2 — same values as results-new, analytics-crosstab and styles.scss).
+  .bs-grid-viewport::-webkit-scrollbar {
+    width: 5px;
+  }
+  .bs-grid-viewport::-webkit-scrollbar:horizontal {
+    display: none;
+  }
+  .bs-grid-viewport::-webkit-scrollbar-track {
+    background-color: transparent;
+    border-radius: 10px;
+  }
+  .bs-grid-viewport::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    background: rgba(23, 23, 23, 0.15);
+    &:hover {
+      background: rgba(23, 23, 23, 0.2);
+    }
+  }
+
+  .bs-grid-hscroll {
+    display: flex;
+    flex: 0 0 auto;
+  }
+  .bs-grid-hscroll-spacer {
+    flex: 0 0 auto;
+  }
+  .bs-grid-hscroll-viewport {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 5px;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    &::-webkit-scrollbar {
+      height: 5px;
+    }
+    &::-webkit-scrollbar:vertical {
+      display: none;
+    }
+    &::-webkit-scrollbar-track {
+      background-color: transparent;
+      border-radius: 10px;
+    }
+    &::-webkit-scrollbar-thumb {
+      border-radius: 10px;
+      background: rgba(23, 23, 23, 0.15);
+      &:hover {
+        background: rgba(23, 23, 23, 0.2);
+      }
+    }
+  }
+  .bs-grid-hscroll-fill {
+    height: 1px;
+  }
+}
+
+// --- side bar ---
+.bs-grid-sidebar-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--bs-grid-border);
+  background: var(--bs-grid-header-bg);
+}
+.bs-grid-sidebar-tab {
+  writing-mode: vertical-rl;
+  border: none;
+  background: transparent;
+  padding: 10px 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--bs-grid-text);
+  &:hover {
+    background: var(--bs-grid-row-hover);
+  }
+  &--active {
+    background: var(--bs-grid-bg);
+    font-weight: 600;
+    box-shadow: inset 2px 0 0 var(--bs-grid-accent);
+  }
+}
+.bs-grid-sidebar-panel {
+  flex: 0 0 auto;
+  width: 220px;
+  border-left: 1px solid var(--bs-grid-border);
+  background: var(--bs-grid-bg);
+  overflow: auto;
+  padding: 8px;
+  box-sizing: border-box;
+}
+.bs-grid-tool-search,
+.bs-grid-tool-filter .bs-grid-float-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.bs-grid-tool-search {
+  height: 26px;
+  padding: 0 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 3px;
+  font-size: 12px;
+}
+.bs-grid-tool-col label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 2px;
+  cursor: pointer;
+  font-weight: 400;
+  input {
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  // keep every question label to a single row (ellipsis); full text shows on hover via title.
+  span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+// Filters tool panel — collapsible per-column advanced filter (operator + value inputs).
+.bs-grid-tool-filter {
+  border-bottom: 1px solid var(--bs-grid-border);
+}
+.bs-grid-tool-filter-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 2px;
+  cursor: pointer;
+  user-select: none;
+  &:hover .bs-grid-tool-filter-name {
+    color: var(--bs-grid-accent);
+  }
+}
+.bs-grid-tool-filter-chevron {
+  flex: 0 0 auto;
+  width: 12px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--bs-grid-text-muted);
+}
+.bs-grid-tool-filter-name {
+  flex: 1 1 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bs-grid-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bs-grid-tool-filter-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bs-grid-accent);
+}
+.bs-grid-tool-filter-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 2px 10px 18px;
+}
+.bs-grid-tool-op {
+  width: 100%;
+  box-sizing: border-box;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--bs-grid-border-strong);
+  border-radius: 3px;
+  font-size: 12px;
+  background: var(--bs-grid-bg);
+  color: var(--bs-grid-text);
+  outline: none;
+  cursor: pointer;
+  &:focus {
+    border-color: var(--bs-grid-accent);
+  }
+}
+.bs-grid-tool-clear {
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 3px 10px;
+  border: 1px solid var(--bs-grid-border-strong);
+  border-radius: 3px;
+  background: var(--bs-grid-bg);
+  color: var(--bs-grid-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  &:hover {
+    background: var(--bs-grid-row-hover);
+    color: var(--bs-grid-accent);
+  }
+}
+
+.bs-grid-canvas {
+  position: relative;
+  min-width: 100%;
+}
+
+// --- pivot group header (tier 1, only in pivot mode with 2+ measures) ---
+.bs-grid-pivot-group-row {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bs-grid-header-bg);
+  border-bottom: 1px solid var(--bs-grid-border);
+  box-sizing: border-box;
+  .bs-grid-region--left {
+    background: var(--bs-grid-header-bg);
+  }
+}
+
+.bs-grid-pivot-group-cell {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 700;
+  color: var(--bs-grid-header-text);
+  border-right: 1px solid var(--bs-grid-border);
+}
+
+// --- header ---
+.bs-grid-header-row {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bs-grid-header-bg);
+  border-bottom: 1px solid var(--bs-grid-border-strong);
+  box-sizing: border-box;
+}
+
+.bs-grid-header-cell {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 700;
+  color: var(--bs-grid-header-text);
+  letter-spacing: 0.01em;
+  user-select: none;
+  border-right: 1px solid var(--bs-grid-border);
+
+  // space the header select-all checkbox off the column title
+  > .bs-grid-checkbox {
+    margin-right: 8px;
+  }
+}
+
+.bs-grid-header-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bs-grid-header-cell--sortable {
+  cursor: pointer;
+}
+.bs-grid-header-cell--dragging {
+  opacity: 0.5;
+}
+
+.bs-grid-header-sort {
+  margin-left: 4px;
+  font-size: 9px;
+  color: var(--bs-grid-accent);
+  white-space: nowrap;
+  sup {
+    font-size: 8px;
+    margin-left: 1px;
+  }
+}
+
+.bs-grid-header-spacer {
+  flex: 1 1 auto;
+}
+
+.bs-grid-header-menu-btn {
+  flex: 0 0 auto;
+  cursor: pointer;
+  padding: 0 2px;
+  color: var(--bs-grid-text-muted);
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s;
+  &:hover {
+    color: var(--bs-grid-accent);
+  }
+}
+.bs-grid-header-cell:hover .bs-grid-header-menu-btn {
+  opacity: 1;
+}
+
+// --- header 3-dot menu popup ---
+.bs-grid-menu {
+  position: absolute;
+  z-index: 20;
+  min-width: 200px;
+  // Cap the menu so a long survey-question label (e.g. "Group by <full question>") can't
+  // stretch the popup across the grid — the label ellipsises and reveals in full on hover.
+  max-width: 300px;
+  background: var(--bs-grid-bg);
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  padding: 4px 0;
+  font-weight: 400;
+}
+.bs-grid-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  &:hover {
+    background: var(--bs-grid-row-hover);
+  }
+  &--disabled {
+    color: var(--bs-grid-text-muted);
+    pointer-events: none;
+  }
+  &--parent > .bs-grid-submenu {
+    display: none;
+  }
+  &--parent:hover > .bs-grid-submenu {
+    display: block;
+  }
+}
+.bs-grid-menu-icon {
+  width: 14px;
+  text-align: center;
+  color: var(--bs-grid-accent);
+  flex: 0 0 auto;
+}
+// keep every menu label to a single row; long labels ellipsis (full text on hover via title).
+.bs-grid-menu-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bs-grid-menu-arrow {
+  color: var(--bs-grid-text-muted);
+}
+.bs-grid-menu-sep {
+  height: 1px;
+  background: var(--bs-grid-border-strong);
+  margin: 4px 0;
+}
+.bs-grid-submenu {
+  position: absolute;
+  left: 100%;
+  top: -5px;
+  min-width: 140px;
+  max-width: 260px;
+  background: var(--bs-grid-bg);
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  padding: 4px 0;
+}
+// When the parent menu sits near the grid's right edge, open submenus (e.g. "Pin Column")
+// to the LEFT so they aren't clipped by the root's overflow:hidden. Toggled per-open by the
+// component (menuFlipSub / ctxFlipSub) based on available room to the right.
+.bs-grid-menu--flip-sub .bs-grid-submenu {
+  left: auto;
+  right: 100%;
+}
+
+.bs-grid-resize-handle {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 100%;
+  margin-right: -8px; // sit over the cell's right border
+  cursor: col-resize;
+  touch-action: none;
+  &:hover {
+    background: rgba(127, 149, 209, 0.55);
+  } // brand blue, mild
+}
+
+.bs-grid-drag-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--bs-grid-accent);
+  pointer-events: none;
+  z-index: 4;
+}
+
+// --- floating filter row ---
+.bs-grid-floating-row {
+  display: flex;
+  position: sticky;
+  z-index: 2;
+  background: var(--bs-grid-header-bg);
+  border-bottom: 1px solid var(--bs-grid-border);
+  box-sizing: border-box;
+  .bs-grid-region--left,
+  .bs-grid-region--right {
+    background: var(--bs-grid-header-bg);
+  }
+}
+.bs-grid-float-cell {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 3px 4px;
+  border-right: 1px solid var(--bs-grid-border);
+  display: flex;
+  align-items: center;
+}
+.bs-grid-float-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 22px;
+  padding: 0 6px;
+  font-size: 12px;
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 3px;
+  outline: none;
+  &:focus {
+    border-color: var(--bs-grid-accent);
+  }
+}
+// inline date picker in the floating filter — shrinks inside narrow cells, keeps native picker
+.bs-grid-float-input--date {
+  min-width: 0;
+  padding: 0 4px;
+  color: var(--bs-grid-text);
+  &::-webkit-calendar-picker-indicator {
+    margin-left: 0;
+    opacity: 0.6;
+    cursor: pointer;
+  }
+  &::-webkit-inner-spin-button {
+    display: none;
+  }
+}
+.bs-grid-float-datelabel {
+  flex: 1 1 auto;
+  font-size: 12px;
+  color: var(--bs-grid-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 2px;
+  &--active {
+    color: var(--bs-grid-accent);
+    font-weight: 500;
+  }
+}
+.bs-grid-filter-btn {
+  flex: 0 0 auto;
+  margin-left: 4px;
+  width: 20px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 3px;
+  background: var(--bs-grid-bg);
+  color: var(--bs-grid-text-muted);
+  cursor: pointer;
+  &:hover {
+    color: var(--bs-grid-accent);
+    border-color: var(--bs-grid-accent);
+  }
+  &--active {
+    color: var(--bs-grid-accent);
+    background: var(--bs-grid-accent-soft);
+    border-color: var(--bs-grid-accent);
+  }
+}
+
+// --- Set Filter popup ---
+.bs-grid-filter-popup {
+  position: absolute;
+  z-index: 20;
+  width: 230px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bs-grid-bg);
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  font-weight: 400;
+}
+.bs-grid-filter-search-wrap {
+  padding: 8px;
+  border-bottom: 1px solid var(--bs-grid-border-strong);
+}
+.bs-grid-filter-search {
+  width: 100%;
+  box-sizing: border-box;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 3px;
+  font-size: 12px;
+  outline: none;
+  &:focus {
+    border-color: var(--bs-grid-accent);
+  }
+}
+.bs-grid-filter-opts {
+  overflow: auto;
+  padding: 2px 0;
+}
+.bs-grid-filter-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  &:hover {
+    background: var(--bs-grid-row-hover);
+  }
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &--all {
+    border-bottom: 1px solid var(--bs-grid-border-strong);
+    font-weight: 600;
+  }
+}
+.bs-grid-filter-empty {
+  padding: 10px;
+  text-align: center;
+  color: var(--bs-grid-text-muted);
+  font-size: 12px;
+}
+
+// --- Multi filter (text + set) ---
+.bs-grid-multi-text {
+  padding: 8px 8px 0;
+}
+
+// --- Date / Number filter ---
+.bs-grid-date-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+.bs-grid-date-cond,
+.bs-grid-date-input {
+  height: 28px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 3px;
+  font-size: 13px;
+  outline: none;
+  &:focus {
+    border-color: var(--bs-grid-accent);
+  }
+}
+.bs-grid-date-clear {
+  align-self: flex-end;
+  margin-top: 2px;
+  padding: 4px 12px;
+  border: 1px solid var(--bs-grid-border);
+  border-radius: 3px;
+  background: var(--bs-grid-bg);
+  cursor: pointer;
+  font-size: 12px;
+  &:hover {
+    background: var(--bs-grid-row-hover);
+  }
+}
+
+// --- rows layer ---
+.bs-grid-rows {
+  position: relative;
+  width: 100%;
+}
+
+.bs-grid-row {
+  display: flex;
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--bs-grid-border);
+  background: var(--bs-grid-bg);
+  &:hover {
+    background: var(--bs-grid-row-hover);
+  }
+  &.bs-grid-row--selected {
+    background: var(--bs-grid-selected);
+  }
+}
+
+// --- current / active row (acknowledges a click; distinct from checkbox selection) ---
+// Checkbox selection FILLS the row (a set marked for bulk actions). The row you last clicked is
+// the CURRENT row — marked with a brand-blue left accent bar + a faint tint, so both states stay
+// legible when a row is selected AND current. The bar sits on the leftmost region (the sticky
+// pinned-left region when present, otherwise the center region) so it hugs the row's left edge.
+.bs-grid-row--active:not(.bs-grid-row--selected) {
+  background: var(--bs-grid-row-active);
+}
+.bs-grid-row--active .bs-grid-region:first-child {
+  // deeper companion (not the soft periwinkle) so the click acknowledgment is unmistakable
+  box-shadow: inset 3px 0 0 0 var(--bs-grid-accent-strong);
+}
+
+.bs-grid-cell {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-right: 1px solid var(--bs-grid-border);
+}
+.bs-grid-cell-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// --- group rows ---
+.bs-grid-row--group {
+  background: var(--bs-grid-group-bg);
+  font-weight: 500;
+}
+.bs-grid-row--group .bs-grid-region--left,
+.bs-grid-row--group .bs-grid-region--right {
+  background: var(--bs-grid-group-bg);
+}
+.bs-grid-cell--group {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 1px solid var(--bs-grid-border);
+}
+.bs-grid-group-indent {
+  flex: 0 0 auto;
+}
+.bs-grid-group-chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--bs-grid-text);
+  font-size: 11px;
+  user-select: none;
+  &:hover {
+    color: var(--bs-grid-accent);
+  }
+}
+.bs-grid-group-key {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.bs-grid-group-count {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  color: var(--bs-grid-text-muted);
+  font-weight: 400;
+}
+.bs-grid-cell--checkbox {
+  justify-content: flex-start;
+}
+
+// custom-styled tick marks (AG-Grid-balham-like): square, blue check when checked,
+// dash when indeterminate. Native appearance removed for a consistent cross-browser look.
+.bs-grid-checkbox {
+  flex: 0 0 auto;
+  cursor: pointer;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--bs-grid-control-border);
+  border-radius: 3px;
+  background: var(--bs-grid-bg);
+  position: relative;
+  transition:
+    background-color 0.12s,
+    border-color 0.12s;
+  &:hover {
+    border-color: var(--bs-grid-accent);
+  }
+  &:checked {
+    background: var(--bs-grid-accent);
+    border-color: var(--bs-grid-accent);
+    &::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 4px;
+      height: 8px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      // center the rotated tick in the box; the extra -5% on Y optically
+      // balances the L-shaped checkmark (its visual mass sits low-right)
+      transform: translate(-50%, -55%) rotate(45deg);
+    }
+  }
+  &:indeterminate {
+    background: var(--bs-grid-accent);
+    border-color: var(--bs-grid-accent);
+    &::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: 6.5px;
+      width: 8px;
+      height: 2px;
+      background: #fff;
+      border-radius: 1px;
+    }
+  }
+  &:focus-visible {
+    outline: 2px solid rgba(127, 149, 209, 0.55);
+    outline-offset: 1px;
+  }
+}
+
+// --- inline editing (world-class: one crisp focus ring, full-bleed editors, zero double-border) ---
+// Editable-but-idle cell: subtle affordance on hover only, so the grid stays calm.
+.bs-grid-cell--editable {
+  cursor: text;
+  &:hover {
+    background: var(--bs-grid-accent-soft);
+  }
+}
+// Editing cell: the cell itself becomes the editor frame — a single 2px accent ring flush to
+// the cell edges (inset avoids clipping at pinned/viewport boundaries). The editor fills it
+// edge-to-edge so there is never a "box inside a box".
+.bs-grid-cell--editing {
+  padding: 0;
+  overflow: visible;
+  background: var(--bs-grid-bg);
+  box-shadow: inset 0 0 0 2px var(--bs-grid-accent);
+  border-radius: 2px;
+  z-index: 2;
+}
+bs-cell {
+  display: contents;
+}
+
+// --- cell range selection (Excel-style rectangle; docs/bs-grid/CELL-RANGE-SELECTION-SPEC) ---
+// A click-drag no longer falls through to native browser text selection once range selection
+// is enabled — that native fallback is what silently replaced AG's controlled range highlight.
+.bs-grid-root--range-enabled .bs-grid-cell {
+  user-select: none;
+}
+// AG parity (ag-grid theming-selections docs): the range fill is semi-transparent and OVERLAYS
+// existing cell/row backgrounds — it does not replace them. An opaque fill here would blot out
+// row hover, checkbox-selected tint, and the active-row accent under every ranged cell, not just
+// the anchor (this is what punched a visible "hole" in the active-row highlight at the clicked
+// column before this was an rgba overlay).
+.bs-grid-cell--range {
+  background: rgba(127, 149, 209, 0.16);
+}
+// Per-edge borders draw one clean border around the range. Each edge sets its own custom
+// property (not box-shadow directly) so 2+ simultaneous edges compose instead of overwriting.
+.bs-grid-cell--range-edge-top {
+  --bs-grid-range-edge-top: inset 0 1px 0 0 var(--bs-grid-accent);
+}
+.bs-grid-cell--range-edge-bottom {
+  --bs-grid-range-edge-bottom: inset 0 -1px 0 0 var(--bs-grid-accent);
+}
+.bs-grid-cell--range-edge-left {
+  --bs-grid-range-edge-left: inset 1px 0 0 0 var(--bs-grid-accent);
+}
+.bs-grid-cell--range-edge-right {
+  --bs-grid-range-edge-right: inset -1px 0 0 0 var(--bs-grid-accent);
+}
+.bs-grid-cell--range-edge-top,
+.bs-grid-cell--range-edge-bottom,
+.bs-grid-cell--range-edge-left,
+.bs-grid-cell--range-edge-right {
+  box-shadow:
+    var(--bs-grid-range-edge-top, inset 0 0 0 0 transparent),
+    var(--bs-grid-range-edge-bottom, inset 0 0 0 0 transparent),
+    var(--bs-grid-range-edge-left, inset 0 0 0 0 transparent),
+    var(--bs-grid-range-edge-right, inset 0 0 0 0 transparent);
+}
+// The anchor/focused cell (AG's ag-cell-focus): a thin inner ring, nothing else. Uses `outline`
+// (not `box-shadow`, which the edge rules above already own — box-shadow is a single property,
+// so a second declaration would silently replace the rectangle border instead of combining with
+// it) and no background change, so both the range fill and any row-level tint underneath still
+// show through exactly as they do on every other cell in the range.
+.bs-grid-cell--range-anchor {
+  outline: 1px solid var(--bs-grid-accent-strong);
+  outline-offset: -1px;
+}
+// Keyboard-focused cell (AG's ag-cell-focus) — same ring as the anchor; grid draws its own
+// per-cell focus, so the root's native focus outline is suppressed.
+.bs-grid-cell--focus {
+  outline: 1px solid var(--bs-grid-accent-strong);
+  outline-offset: -1px;
+}
+.bs-grid-header-cell--focus {
+  outline: 1px solid var(--bs-grid-accent-strong);
+  outline-offset: -1px;
+}
+.bs-grid-root:focus {
+  outline: none;
+}
+
+// Inline editors are created imperatively (document.createElement in bs-cell) and appended to
+// the DOM, so they DON'T receive Angular's emulated-encapsulation attribute — meaning normal
+// component-scoped selectors never match them and they render as raw native inputs. Pierce the
+// encapsulation with `:host ::ng-deep` (scoped to this grid instance) so the editor styling
+// actually lands on those elements. This is what makes the editors match the cell exactly.
+:host ::ng-deep {
+  // text / number / date editors — seamless, borderless, inherit the cell's typography and
+  // line-height so the editing text sits exactly where the display value did (no vertical jump).
+  .bs-grid-inline-editor {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+    padding: 0 8px;
+    margin: 0;
+    font: inherit;
+    line-height: normal; // let the input center its own text vertically within the cell height
+    color: inherit;
+    background: transparent;
+    &::placeholder {
+      color: var(--bs-grid-text-muted);
+    }
+    &:focus {
+      outline: none;
+    }
+  }
+  // number editor: strip the native spin buttons — they cramp the cell and break the clean look.
+  .bs-grid-inline-editor--number {
+    -moz-appearance: textfield;
+    appearance: textfield;
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+  // date / datetime-local inputs keep their native calendar picker but trim the spinner cramping
+  .bs-grid-inline-editor--date,
+  .bs-grid-inline-editor--datetime-local {
+    padding-right: 4px;
+    &::-webkit-inner-spin-button {
+      display: none;
+    }
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0.6;
+      cursor: pointer;
+    }
+  }
+
+  // select editor — native <select> for reliable option handling, but styled to look custom:
+  // no native chrome, a single soft chevron on the right, full-bleed inside the accent ring.
+  .bs-grid-inline-select {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border: none;
+    outline: none;
+    margin: 0;
+    padding: 0 26px 0 8px;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    background-color: var(--bs-grid-bg);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M1 3l4 4 4-4' fill='none' stroke='%236b7280' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 10px 10px;
+    &::-ms-expand {
+      display: none;
+    }
+    &:focus {
+      outline: none;
+    }
+  }
+}
+
+// --- regions (pinned via sticky) ---
+.bs-grid-region {
+  display: flex;
+  box-sizing: border-box;
+  &--left,
+  &--right {
+    flex: 0 0 auto;
+    position: sticky;
+    z-index: 2;
+    background: inherit;
+  }
+  // A hairline border alone (the old `--bs-grid-border`, #ececec) reads as basically invisible
+  // while scrolling — customer feedback ("doesn't split with the pinned columns... not aligned
+  // when we scroll") traced to this seam not giving enough of a visual anchor. A solid border +
+  // a soft drop-shadow (the shadow reads as depth/elevation, which a border alone doesn't) gives
+  // the same "this region is pinned, everything else slides under it" cue AG's own themes use.
+  &--left {
+    left: 0;
+    border-right: 1px solid var(--bs-grid-border-strong);
+    box-shadow: 2px 0 4px -2px rgba(23, 23, 23, 0.18);
+  }
+  &--right {
+    right: 0;
+    border-left: 1px solid var(--bs-grid-border-strong);
+    box-shadow: -2px 0 4px -2px rgba(23, 23, 23, 0.18);
+  }
+  &--center {
+    flex: 0 0 auto;
+  }
+}
+
+// Column-virtualization spacer: holds the x-offset of the first RENDERED center column so
+// off-window columns need no DOM. Present in the header, floating, pivot-group and row
+// center regions (all share the same window).
+.bs-grid-col-spacer {
+  flex: 0 0 auto;
+}
+
+// pinned regions in the header get the header background; in rows they inherit row bg
+.bs-grid-header-row .bs-grid-region--left,
+.bs-grid-header-row .bs-grid-region--right {
+  background: var(--bs-grid-header-bg);
+}
+
+.bs-grid-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-grid-text-muted);
+  pointer-events: none;
+}
+
+.bs-grid-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bs-grid-overlay-bg);
+  z-index: 5;
+}
+// The overlay message is injected via [innerHTML] (host template, e.g. the responses "saving"
+// text), so it isn't encapsulation-scoped — pierce with ::ng-deep to present it as a centered
+// card. Covers the host's `ag-overlay-loading-center` span and a plain-text fallback.
+:host ::ng-deep .bs-grid-overlay {
+  .ag-overlay-loading-center,
+  > span {
+    display: inline-block;
+    background: var(--bs-grid-bg);
+    padding: 10px 18px;
+    border-radius: 6px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.14);
+    color: var(--bs-grid-text);
+    font-weight: 500;
+    font-size: 13px;
+  }
+}
+
+// --- status bar ---
+.bs-grid-status-item { white-space: nowrap; }   // keep "Total Rows: 1,000" on one line
+
+.bs-grid-paging {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 20px;
+  padding: 4px 12px;
+  border-top: 1px solid var(--bs-grid-border);
+  background: var(--bs-grid-header-bg);
+  color: var(--bs-grid-text);
+  font-size: 12px;
+}
+.bs-grid-paging-size { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.bs-grid-paging-select {
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid var(--bs-grid-border-strong);
+  border-radius: 3px;
+  background: var(--bs-grid-bg);
+  color: var(--bs-grid-text);
+  font: inherit;
+  cursor: pointer;
+  &:focus-visible { outline: 2px solid var(--bs-grid-accent); outline-offset: 1px; }
+}
+.bs-grid-paging-nav { display: inline-flex; align-items: center; gap: 2px; }
+.bs-grid-paging-desc { margin: 0 8px; }
+.bs-grid-paging-btn {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--bs-grid-text);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  &:hover:not(:disabled) { background: var(--bs-grid-row-hover); color: var(--bs-grid-accent-strong); }
+  &:focus-visible { outline: 2px solid var(--bs-grid-accent); outline-offset: 1px; }
+  &:disabled { color: var(--bs-grid-text-muted); opacity: 0.45; cursor: default; }
+}
+
+.bs-grid-status {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;            // narrow grids: panels wrap instead of spilling off the left edge
+  gap: 2px 16px;
+  justify-content: flex-end;
+  padding: 4px 12px;
+  border-top: 1px solid var(--bs-grid-border);
+  background: var(--bs-grid-header-bg);
+  font-size: 12px;
+}

@@ -1,0 +1,68 @@
+:host {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  font: 14px/1.5 "Inter", system-ui, -apple-system, sans-serif;
+  color: #171717;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 14px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+h1 { margin: 0; font-size: 20px; font-weight: 650; }
+.sub { margin: 2px 0 0; color: #6b7280; font-size: 13px; }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar button,
+.toolbar input {
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  border: 1px solid #d8dade;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.toolbar input { cursor: text; min-width: 200px; }
+.toolbar button:hover { background: #f6f7f9; }
+.spacer { flex: 1 1 auto; }
+.count { color: #6b7280; font-size: 13px; }
+
+.grid-host {
+  flex: 1 1 0%;
+  min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.page.bs-grid-dark {
+  background: #14171b;
+  color: #e8eaed;
+
+  .sub, .count { color: #9aa0a6; }
+  .toolbar button, .toolbar input { background: #1e2126; color: #e8eaed; border-color: #34383f; }
+}
+
+.events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  min-height: 20px;
+  font-size: 12px;
+  color: #6b7280;
+}
+.page.bs-grid-dark .events { color: #9aa0a6; }

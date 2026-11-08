@@ -1,0 +1,21 @@
+/* Optional dark theme for @blocksurvey/bs-grid.
+   Usage: add to angular.json "styles", then put class="bs-grid-dark" on any ancestor. */
+.bs-grid-dark bs-grid {
+  --bs-grid-bg: #17191d;
+  --bs-grid-border: #2a2d32;
+  --bs-grid-border-strong: #34383f;
+  --bs-grid-header-bg: #1e2126;
+  --bs-grid-header-text: #e8eaed;
+  --bs-grid-row-hover: #22262c;
+  --bs-grid-row-active: #202a3a;
+  --bs-grid-selected: #253048;
+  --bs-grid-pinned-bg: #1b1e23;
+  --bs-grid-group-bg: #1e2126;
+  --bs-grid-text: #d7dae0;
+  --bs-grid-text-muted: #9aa0a6;
+  --bs-grid-control-border: #5a6069;
+  --bs-grid-overlay-bg: rgba(23, 25, 29, 0.7);
+  --bs-grid-accent: #8fa4dd;
+  --bs-grid-accent-strong: #a5b6e8;
+  --bs-grid-accent-soft: #262c3a;
+}

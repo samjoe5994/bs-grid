@@ -1,0 +1,431 @@
+<!--
+  BsGrid (Phase 2): one scroll viewport holds a canvas sized to the full content. The
+  header is a sticky-top flex row; pinned cells are sticky-left / sticky-right — so
+  horizontal + vertical pinning need NO manual scroll-sync (pure CSS). Only the visible
+  row window (+buffer) is rendered, each row absolutely positioned by rowTop.
+-->
+<!-- focus/pointerdown are wired imperatively in ngAfterViewInit OUTSIDE Angular: template
+     bindings here would run change detection between a child's mousedown and mouseup,
+     recreating untracked *ngFor nodes (e.g. sidebar tabs) and swallowing their clicks. -->
+<div #root class="bs-grid-root" [class.bs-grid-root--range-enabled]="enableRangeSelection" tabindex="0"
+  (keydown)="onGridKeyDown($event)" (paste)="onGridPaste($event)">
+
+  <div class="bs-grid-main">
+    <!-- Overlays (empty / loading) sit OUTSIDE the scroll viewport so they stay centered in
+       the visible area even when a wide grid is scrolled horizontally. -->
+    <div class="bs-grid-body-wrap">
+      <div #viewport class="bs-grid-viewport" (contextmenu)="onGridContextMenu($event)" role="grid"
+        [attr.aria-rowcount]="ariaRowCount" [attr.aria-colcount]="ariaColCount"
+        [attr.aria-multiselectable]="rowSelection === 'multiple' ? true : null">
+        <div class="bs-grid-canvas" role="presentation" [style.width.px]="totalWidth || null">
+
+          <!-- Pivot group header (tier 1): one span per pivot value, above its measure columns.
+           Shown only in pivot mode with 2+ aggregations — matching AG's grouped pivot header. -->
+          <div class="bs-grid-pivot-group-row" *ngIf="showPivotGroupHeader" [style.height.px]="headerHeightPx"
+            [style.width.px]="totalWidth || null">
+            <div class="bs-grid-region bs-grid-region--left" *ngIf="leftColumns.length"
+              [style.width.px]="cols.leftWidth">
+              <div class="bs-grid-pivot-group-cell" [style.width.px]="cols.leftWidth"></div>
+            </div>
+            <div class="bs-grid-region bs-grid-region--center" [style.width.px]="cols.centerWidth">
+              <div class="bs-grid-col-spacer" *ngIf="centerSpacerLeft" [style.width.px]="centerSpacerLeft"></div>
+              <div class="bs-grid-pivot-group-cell" *ngFor="let g of renderedPivotSpans" [style.width.px]="g.width"
+                [title]="g.label">{{ g.label }}</div>
+            </div>
+          </div>
+
+          <!-- Header (sticky top) -->
+          <div class="bs-grid-header-row" role="row" aria-rowindex="1" [style.height.px]="headerHeightPx"
+            [style.top.px]="headerOffsetPx" [style.width.px]="totalWidth || null">
+            <div class="bs-grid-region bs-grid-region--left" role="presentation" *ngIf="leftColumns.length"
+              [style.width.px]="cols.leftWidth" [style.left.px]="0">
+              <ng-container *ngFor="let col of leftColumns; trackBy: trackCol">
+                <ng-container *ngTemplateOutlet="headerCell; context: { $implicit: col }"></ng-container>
+              </ng-container>
+            </div>
+            <div class="bs-grid-region bs-grid-region--center" role="presentation" [style.width.px]="cols.centerWidth">
+              <div class="bs-grid-col-spacer" *ngIf="centerSpacerLeft" [style.width.px]="centerSpacerLeft"></div>
+              <ng-container *ngFor="let col of renderedCenterColumns; trackBy: trackCol">
+                <ng-container *ngTemplateOutlet="headerCell; context: { $implicit: col }"></ng-container>
+              </ng-container>
+            </div>
+            <div class="bs-grid-region bs-grid-region--right" role="presentation" *ngIf="rightColumns.length"
+              [style.width.px]="cols.rightWidth">
+              <ng-container *ngFor="let col of rightColumns; trackBy: trackCol">
+                <ng-container *ngTemplateOutlet="headerCell; context: { $implicit: col }"></ng-container>
+              </ng-container>
+            </div>
+
+            <!-- drag indicator while reordering -->
+            <div class="bs-grid-drag-indicator" *ngIf="dragIndicatorX != null" [style.left.px]="dragIndicatorX"></div>
+          </div>
+
+          <!-- header cell template (shared across regions) -->
+          <ng-template #headerCell let-col>
+            <div class="bs-grid-header-cell" role="columnheader" [attr.aria-colindex]="ariaColIndex(col)"
+              [attr.aria-sort]="ariaSort(col)" [class.bs-grid-header-cell--focus]="focusedHeaderColId === col.colId"
+              [class.bs-grid-header-cell--sortable]="col.isSortable()"
+              [class.bs-grid-header-cell--dragging]="draggingCol === col" [style.width.px]="col.width"
+              [title]="col.colDef.headerTooltip || col.headerName" (pointerdown)="onHeaderPointerDown(col, $event)"
+              (click)="onHeaderClick(col, $event)">
+              <input *ngIf="showsHeaderCheckbox(col)" type="checkbox" class="bs-grid-checkbox"
+                [checked]="headerCheckboxState() === 'checked'"
+                [indeterminate]="headerCheckboxState() === 'indeterminate'" (click)="onHeaderCheckboxToggle($event)"
+                (pointerdown)="$event.stopPropagation()" />
+              <span class="bs-grid-header-label">{{ headerLabel(col) }}</span>
+              <span class="bs-grid-header-sort" *ngIf="col.sort">
+                {{ sortArrow(col) }}<sup *ngIf="sortOrdinal(col)">{{ sortOrdinal(col) }}</sup>
+              </span>
+              <span class="bs-grid-header-spacer"></span>
+              <span class="bs-grid-header-menu-btn" title="Column menu" (pointerdown)="$event.stopPropagation()"
+                (click)="openHeaderMenu(col, $event)">⋮</span>
+              <span class="bs-grid-resize-handle" *ngIf="col.isResizable()" (pointerdown)="onResizeStart(col, $event)"
+                (dblclick)="onResizeDblClick(col, $event)" (click)="$event.stopPropagation()"></span>
+            </div>
+          </ng-template>
+
+          <!-- Floating filter row (sticky under the header) -->
+          <div class="bs-grid-floating-row" *ngIf="hasFloatingFilters" [style.top.px]="headerOffsetPx + headerHeightPx"
+            [style.width.px]="totalWidth || null">
+            <div class="bs-grid-region bs-grid-region--left" *ngIf="leftColumns.length"
+              [style.width.px]="cols.leftWidth">
+              <ng-container *ngFor="let col of leftColumns; trackBy: trackCol">
+                <ng-container *ngTemplateOutlet="floatCell; context: { $implicit: col }"></ng-container>
+              </ng-container>
+            </div>
+            <div class="bs-grid-region bs-grid-region--center" [style.width.px]="cols.centerWidth">
+              <div class="bs-grid-col-spacer" *ngIf="centerSpacerLeft" [style.width.px]="centerSpacerLeft"></div>
+              <ng-container *ngFor="let col of renderedCenterColumns; trackBy: trackCol">
+                <ng-container *ngTemplateOutlet="floatCell; context: { $implicit: col }"></ng-container>
+              </ng-container>
+            </div>
+            <div class="bs-grid-region bs-grid-region--right" *ngIf="rightColumns.length"
+              [style.width.px]="cols.rightWidth">
+              <ng-container *ngFor="let col of rightColumns; trackBy: trackCol">
+                <ng-container *ngTemplateOutlet="floatCell; context: { $implicit: col }"></ng-container>
+              </ng-container>
+            </div>
+          </div>
+
+          <ng-template #floatCell let-col>
+            <div class="bs-grid-float-cell" [style.width.px]="col.width">
+              <input *ngIf="showsFloatingFilter(col) && floatingFilterType(col) === 'text'" class="bs-grid-float-input"
+                type="text" [value]="floatingFilterValue(col)"
+                (input)="onFloatingFilterInput(col, $any($event.target).value)" (click)="$event.stopPropagation()"
+                placeholder="" />
+              <!-- Date columns: a direct date picker inline (equals that day); advanced ops via the funnel. -->
+              <input *ngIf="showsFloatingFilter(col) && floatingFilterType(col) === 'date'"
+                class="bs-grid-float-input bs-grid-float-input--date" type="date" [value]="floatingDateValue(col)"
+                (input)="onFloatingDateInput(col, $any($event.target).value)" (click)="$event.stopPropagation()" />
+              <span *ngIf="showsFloatingFilter(col) && floatingFilterType(col) === 'number'"
+                class="bs-grid-float-datelabel" [class.bs-grid-float-datelabel--active]="columnHasActiveFilter(col)">
+                {{ (columnHasActiveFilter(col) ? 'Filtered' : 'Number filter') }}
+              </span>
+              <button *ngIf="showsFloatingFilter(col)" class="bs-grid-filter-btn"
+                [class.bs-grid-filter-btn--active]="columnHasActiveFilter(col)" title="Filter options"
+                (click)="openFilterPopup(col, $event)" (mousedown)="$event.stopPropagation()">
+                <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
+                  <path d="M1 2h10L7 7v4L5 10V7L1 2z" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          </ng-template>
+
+          <!-- Rows layer (tall spacer; rendered rows absolutely positioned) -->
+          <div #rowsLayer class="bs-grid-rows" role="rowgroup" [style.height.px]="canvasHeight">
+            <div class="bs-grid-row" *ngFor="let node of renderedNodes; trackBy: trackRow" role="row"
+              [attr.aria-rowindex]="ariaRowIndex(node)" [attr.aria-selected]="ariaSelected(node)"
+              [attr.aria-expanded]="node.group ? node.expanded : null" [class.bs-grid-row--selected]="isSelected(node)"
+              [class.bs-grid-row--active]="isActiveRow(node)" [class.bs-grid-row--group]="node.group"
+              [style.transform]="'translateY(' + node.rowTop + 'px)'" [style.height.px]="node.rowHeight"
+              [style.width.px]="totalWidth || null" (click)="onRowClick(node, allVisibleColumns[0], $event)"
+              (dblclick)="onRowDblClick(node, allVisibleColumns[0], $event)"
+              (contextmenu)="onContextMenu(node, allVisibleColumns[0], $event)">
+
+              <div class="bs-grid-region bs-grid-region--left" role="presentation" *ngIf="leftColumns.length"
+                [style.width.px]="cols.leftWidth">
+                <ng-container *ngFor="let col of leftColumns; trackBy: trackCol">
+                  <ng-container *ngTemplateOutlet="bodyCell; context: { $implicit: col, node: node }"></ng-container>
+                </ng-container>
+              </div>
+              <div class="bs-grid-region bs-grid-region--center" role="presentation"
+                [style.width.px]="cols.centerWidth">
+                <div class="bs-grid-col-spacer" *ngIf="centerSpacerLeft" [style.width.px]="centerSpacerLeft"></div>
+                <ng-container *ngFor="let col of renderedCenterColumns; trackBy: trackCol">
+                  <ng-container *ngTemplateOutlet="bodyCell; context: { $implicit: col, node: node }"></ng-container>
+                </ng-container>
+              </div>
+              <div class="bs-grid-region bs-grid-region--right" role="presentation" *ngIf="rightColumns.length"
+                [style.width.px]="cols.rightWidth">
+                <ng-container *ngFor="let col of rightColumns; trackBy: trackCol">
+                  <ng-container *ngTemplateOutlet="bodyCell; context: { $implicit: col, node: node }"></ng-container>
+                </ng-container>
+              </div>
+            </div>
+          </div>
+
+          <!-- body cell template (group / auto-group / checkbox + renderer/value/editor) -->
+          <ng-template #bodyCell let-col let-node="node">
+            <!-- GROUP ROW -->
+            <div class="bs-grid-cell bs-grid-cell--group" *ngIf="node.group; else leafCell" role="gridcell"
+              [attr.aria-colindex]="ariaColIndex(col)" [style.width.px]="col.width">
+              <ng-container *ngIf="isAutoGroupCol(col)">
+                <span class="bs-grid-group-indent" [style.width.px]="node.level * 18"></span>
+                <!-- No chevron on non-expandable groups: pivot deepest level & the Total row (AG parity). -->
+                <span class="bs-grid-group-chevron" *ngIf="node.children?.length" (click)="toggleGroup(node, $event)">{{
+                  node.expanded ? '▾' : '▸' }}</span>
+                <span class="bs-grid-group-key" [title]="node.key">{{ node.key === '' ? '(Blanks)' : node.key }}</span>
+                <span class="bs-grid-group-count">({{ node.childCount | number }})</span>
+              </ng-container>
+              <span class="bs-grid-cell-value" *ngIf="!isAutoGroupCol(col)">{{ groupAggDisplay(col, node) }}</span>
+            </div>
+
+            <!-- LEAF ROW -->
+            <ng-template #leafCell>
+              <div class="bs-grid-cell" [style.width.px]="col.width" role="gridcell"
+                [attr.aria-colindex]="ariaColIndex(col)" [class.bs-grid-cell--checkbox]="showsCheckbox(col)"
+                [class.bs-grid-cell--editing]="isCellEditing(col, node)"
+                [class.bs-grid-cell--editable]="isColumnEditable(col, node)"
+                [class.bs-grid-cell--range]="isCellInRange(col, node)"
+                [class.bs-grid-cell--range-anchor]="isRangeAnchor(col, node)"
+                [class.bs-grid-cell--focus]="isFocusedCell(col, node)"
+                [class.bs-grid-cell--range-edge-top]="isRangeEdge(col, node, 'top')"
+                [class.bs-grid-cell--range-edge-right]="isRangeEdge(col, node, 'right')"
+                [class.bs-grid-cell--range-edge-bottom]="isRangeEdge(col, node, 'bottom')"
+                [class.bs-grid-cell--range-edge-left]="isRangeEdge(col, node, 'left')"
+                [ngClass]="cellClasses(col, node)" [ngStyle]="cellStyles(col, node)"
+                (mousedown)="onCellMouseDownForEdit(col, node, $event); onCellRangeMouseDown(col, node, $event)"
+                (dblclick)="onCellDblClickForEdit(col, node, $event)">
+                <input *ngIf="showsCheckbox(col)" type="checkbox" class="bs-grid-checkbox" [checked]="isSelected(node)"
+                  (click)="onCheckboxToggle(node, $event)" />
+                <span class="bs-grid-group-indent" *ngIf="isAutoGroupCol(col)"></span>
+                <bs-cell *ngIf="!isAutoGroupCol(col)" [column]="col" [node]="node" [editing]="isCellEditing(col, node)"
+                  [tick]="renderTick"></bs-cell>
+              </div>
+            </ng-template>
+          </ng-template>
+        </div>
+      </div>
+
+      <!-- AG-style fake horizontal scrollbar: track sits only under the CENTER columns (spacers
+       cover the pinned regions), scroll-synced 1:1 with the viewport whose own horizontal
+       scrollbar is hidden. Webkit-only; Firefox keeps the native full-width bar (see scss). -->
+      <div class="bs-grid-hscroll" *ngIf="hscrollNeeded" role="presentation">
+        <div class="bs-grid-hscroll-spacer" [style.width.px]="cols.leftWidth"></div>
+        <div #hscroll class="bs-grid-hscroll-viewport">
+          <div class="bs-grid-hscroll-fill" [style.width.px]="cols.centerWidth"></div>
+        </div>
+        <div class="bs-grid-hscroll-spacer" [style.width.px]="cols.rightWidth + vScrollbarWidth"></div>
+      </div>
+
+      <div class="bs-grid-empty" *ngIf="!totalRowCount">No Rows To Show</div>
+      <div class="bs-grid-overlay" *ngIf="overlayVisible" [innerHTML]="overlayLoadingTemplate || 'Loading…'"></div>
+    </div><!-- /bs-grid-body-wrap -->
+
+    <!-- Side bar panel -->
+    <div class="bs-grid-sidebar-panel" *ngIf="openToolPanel">
+      <!-- Columns tool panel -->
+      <div class="bs-grid-tool-columns" *ngIf="openToolPanel === 'columns'">
+        <input class="bs-grid-tool-search" placeholder="Search..." [(ngModel)]="columnSearch" />
+        <div class="bs-grid-tool-col" *ngFor="let col of columnsForPanel; trackBy: trackCol">
+          <label [title]="col.headerName || '(blank)'">
+            <input type="checkbox" class="bs-grid-checkbox" [checked]="!col.hide" (change)="toggleColumnVisible(col)" />
+            <span>{{ col.headerName || '(blank)' }}</span>
+          </label>
+        </div>
+      </div>
+      <!-- Filters tool panel — collapsible advanced per-column operator filters -->
+      <div class="bs-grid-tool-filters" *ngIf="openToolPanel === 'filters'">
+        <input class="bs-grid-tool-search" placeholder="Search..." [(ngModel)]="columnSearch" />
+        <div class="bs-grid-tool-filter" *ngFor="let col of filterableColumnsForPanel; trackBy: trackCol">
+          <div class="bs-grid-tool-filter-head" role="button" tabindex="0" [attr.aria-expanded]="isToolFilterOpen(col)"
+            (click)="toggleToolFilter(col)" (keydown.enter)="toggleToolFilter(col)"
+            (keydown.space)="toggleToolFilter(col); $event.preventDefault()">
+            <span class="bs-grid-tool-filter-chevron">{{ isToolFilterOpen(col) ? '▾' : '▸' }}</span>
+            <span class="bs-grid-tool-filter-name" [title]="col.headerName || '(blank)'">{{ col.headerName || '(blank)'
+              }}</span>
+            <span class="bs-grid-tool-filter-dot" *ngIf="columnHasActiveFilter(col)"></span>
+          </div>
+          <div class="bs-grid-tool-filter-body" *ngIf="isToolFilterOpen(col)">
+            <select class="bs-grid-tool-op" [ngModel]="toolOp(col)" (ngModelChange)="setToolOp(col, $event)">
+              <option *ngFor="let o of toolOps(col)" [value]="o.value">{{ o.label }}</option>
+            </select>
+            <input class="bs-grid-float-input" [type]="toolInputType(col)" [ngModel]="toolValue(col)"
+              (ngModelChange)="setToolValue(col, $event)" placeholder="Filter..." />
+            <input *ngIf="toolIsRange(col)" class="bs-grid-float-input" [type]="toolInputType(col)"
+              [ngModel]="toolValueTo(col)" (ngModelChange)="setToolValueTo(col, $event)" placeholder="To" />
+            <button class="bs-grid-tool-clear" *ngIf="columnHasActiveFilter(col)"
+              (click)="clearToolFilter(col)">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Side bar tab strip -->
+    <div class="bs-grid-sidebar-tabs" *ngIf="sideBarTabs.length">
+      <button class="bs-grid-sidebar-tab" *ngFor="let tab of sideBarTabs"
+        [class.bs-grid-sidebar-tab--active]="openToolPanel === tab.id" (click)="toggleToolPanel(tab.id)">{{ tab.label
+        }}</button>
+    </div>
+  </div><!-- /bs-grid-main -->
+
+  <!-- Status bar -->
+  <div class="bs-grid-status" *ngIf="statusBar">
+    <!-- AG order/labels: Average, Count, Min, Max, Sum. Count needs >1 non-empty cell of ANY
+         type; the numeric four need >1 numeric cell. -->
+    <ng-container *ngIf="showsRangeAggregation && rangeAggregation as agg">
+      <span class="bs-grid-status-item" *ngIf="agg.numericCount > 1">Average:&nbsp;<b>{{ agg.avg | number:'1.0-2'
+          }}</b></span>
+      <span class="bs-grid-status-item" *ngIf="agg.count > 1">Count:&nbsp;<b>{{ agg.count | number }}</b></span>
+      <span class="bs-grid-status-item" *ngIf="agg.numericCount > 1">Min:&nbsp;<b>{{ agg.min | number:'1.0-2'
+          }}</b></span>
+      <span class="bs-grid-status-item" *ngIf="agg.numericCount > 1">Max:&nbsp;<b>{{ agg.max | number:'1.0-2'
+          }}</b></span>
+      <span class="bs-grid-status-item" *ngIf="agg.numericCount > 1">Sum:&nbsp;<b>{{ agg.sum | number:'1.0-2'
+          }}</b></span>
+    </ng-container>
+    <span class="bs-grid-status-item" *ngIf="selectedCount">Selected:&nbsp;<b>{{ selectedCount | number }}</b></span>
+    <span class="bs-grid-status-item" *ngIf="isFiltered">Rows:&nbsp;<b>{{ totalRowCount | number }}</b></span>
+    <span class="bs-grid-status-item">Total Rows:&nbsp;<b>{{ allRowCount | number }}</b></span>
+  </div>
+
+  <!-- Pagination panel (AG layout: page size · row range · first/prev · page x of y · next/last) -->
+  <div class="bs-grid-paging" *ngIf="showPaginationPanel" role="navigation" aria-label="Pagination">
+    <label class="bs-grid-paging-size" *ngIf="pageSizeOptions.length">
+      Page Size:
+      <select class="bs-grid-paging-select" [value]="pageSize" (change)="onPageSizeSelect($event)" aria-label="Page size">
+        <option *ngFor="let n of pageSizeOptions" [value]="n" [selected]="n === pageSize">{{ n }}</option>
+      </select>
+    </label>
+    <span class="bs-grid-paging-rows" aria-live="polite">
+      <b>{{ (totalPages ? pageFirstRow + 1 : 0) | number }}</b> to <b>{{ (totalPages ? pageLastRow + 1 : 0) | number }}</b>
+      of <b>{{ totalRowCount | number }}</b>
+    </span>
+    <span class="bs-grid-paging-nav">
+      <button type="button" class="bs-grid-paging-btn" aria-label="First page" title="First page"
+        [disabled]="currentPage <= 0" (click)="paginationGoToPage(0)">&#x21E4;</button>
+      <button type="button" class="bs-grid-paging-btn" aria-label="Previous page" title="Previous page"
+        [disabled]="currentPage <= 0" (click)="paginationGoToPage(currentPage - 1)">&#x2039;</button>
+      <span class="bs-grid-paging-desc">Page <b>{{ (totalPages ? currentPage + 1 : 0) | number }}</b> of <b>{{ totalPages | number }}</b></span>
+      <button type="button" class="bs-grid-paging-btn" aria-label="Next page" title="Next page"
+        [disabled]="currentPage >= totalPages - 1" (click)="paginationGoToPage(currentPage + 1)">&#x203A;</button>
+      <button type="button" class="bs-grid-paging-btn" aria-label="Last page" title="Last page"
+        [disabled]="currentPage >= totalPages - 1" (click)="paginationGoToPage(totalPages - 1)">&#x21E5;</button>
+    </span>
+  </div>
+
+  <!-- Column filter popup: Set Filter (text/set) or Date Filter (date cols) -->
+  <div class="bs-grid-filter-popup" *ngIf="filterPopupCol" [style.left.px]="filterPopupX" [style.top.px]="filterPopupY"
+    (mousedown)="$event.stopPropagation()">
+
+    <!-- MULTI FILTER (text + set) -->
+    <div class="bs-grid-multi-text" *ngIf="filterPopupMode === 'multi'">
+      <input class="bs-grid-filter-search" placeholder="Search text..." [value]="multiText"
+        (input)="onMultiTextChange($any($event.target).value)" />
+    </div>
+
+    <!-- NUMBER FILTER -->
+    <ng-container *ngIf="filterPopupMode === 'number'">
+      <div class="bs-grid-date-filter">
+        <select class="bs-grid-date-cond" [(ngModel)]="numberCondition" (ngModelChange)="applyNumberFilter()">
+          <option value="equals">Equals</option>
+          <option value="notEqual">Not equal</option>
+          <option value="greaterThan">Greater than</option>
+          <option value="greaterThanOrEqual">Greater than or =</option>
+          <option value="lessThan">Less than</option>
+          <option value="lessThanOrEqual">Less than or =</option>
+          <option value="inRange">In range</option>
+        </select>
+        <input type="number" class="bs-grid-date-input" [(ngModel)]="numberFrom" (ngModelChange)="applyNumberFilter()"
+          placeholder="Value" />
+        <input *ngIf="numberCondition === 'inRange'" type="number" class="bs-grid-date-input" [(ngModel)]="numberTo"
+          (ngModelChange)="applyNumberFilter()" placeholder="To" />
+        <button class="bs-grid-date-clear" (click)="clearColumnFilter()">Clear</button>
+      </div>
+    </ng-container>
+
+    <!-- SET / MULTI option list -->
+    <ng-container *ngIf="filterPopupMode === 'set' || filterPopupMode === 'multi'">
+      <div class="bs-grid-filter-search-wrap">
+        <input class="bs-grid-filter-search" placeholder="Search options..." [(ngModel)]="filterSearch" />
+      </div>
+      <label class="bs-grid-filter-opt bs-grid-filter-opt--all">
+        <input type="checkbox" class="bs-grid-checkbox" [checked]="selectAllState === 'checked'"
+          [indeterminate]="selectAllState === 'indeterminate'" (change)="toggleSelectAllOptions()" />
+        <span>(Select All)</span>
+      </label>
+      <div class="bs-grid-filter-opts">
+        <label class="bs-grid-filter-opt" *ngFor="let opt of visibleFilterOptions">
+          <input type="checkbox" class="bs-grid-checkbox" [checked]="opt.selected" (change)="toggleFilterOption(opt)" />
+          <span [title]="opt.label">{{ opt.label }}</span>
+        </label>
+        <div class="bs-grid-filter-empty" *ngIf="!visibleFilterOptions.length">No matches</div>
+      </div>
+    </ng-container>
+
+    <!-- DATE FILTER -->
+    <ng-container *ngIf="filterPopupMode === 'date'">
+      <div class="bs-grid-date-filter">
+        <select class="bs-grid-date-cond" [(ngModel)]="dateCondition" (ngModelChange)="applyDateFilter()">
+          <option value="equals">Equals</option>
+          <option value="lessThan">Before</option>
+          <option value="greaterThan">After</option>
+          <option value="inRange">In range</option>
+        </select>
+        <input type="date" class="bs-grid-date-input" [(ngModel)]="dateFrom" (ngModelChange)="applyDateFilter()" />
+        <input *ngIf="dateCondition === 'inRange'" type="date" class="bs-grid-date-input" [(ngModel)]="dateTo"
+          (ngModelChange)="applyDateFilter()" placeholder="To" />
+        <button class="bs-grid-date-clear" (click)="clearColumnFilter()">Clear</button>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Context menu popup -->
+  <div class="bs-grid-menu" *ngIf="ctxOpen" [style.left.px]="ctxX" [style.top.px]="ctxY"
+    [class.bs-grid-menu--flip-sub]="ctxFlipSub" (mousedown)="$event.stopPropagation()">
+    <ng-container *ngFor="let item of ctxItems">
+      <div class="bs-grid-menu-sep" *ngIf="item.separator"></div>
+      <div class="bs-grid-menu-item" *ngIf="!item.separator && !item.submenu"
+        [class.bs-grid-menu-item--disabled]="item.disabled" (click)="runCtxItem(item)">
+        <span class="bs-grid-menu-icon">{{ item.icon || '' }}</span>
+        <span class="bs-grid-menu-label" [title]="item.label">{{ item.label }}</span>
+      </div>
+      <div class="bs-grid-menu-item bs-grid-menu-item--parent" *ngIf="!item.separator && item.submenu">
+        <span class="bs-grid-menu-icon">{{ item.icon || '' }}</span>
+        <span class="bs-grid-menu-label" [title]="item.label">{{ item.label }}</span>
+        <span class="bs-grid-menu-arrow">›</span>
+        <div class="bs-grid-submenu">
+          <div class="bs-grid-menu-item" *ngFor="let sub of item.submenu"
+            [class.bs-grid-menu-item--disabled]="sub.disabled" (click)="runCtxItem(sub)">
+            <span class="bs-grid-menu-icon">{{ sub.icon || '' }}</span>
+            <span class="bs-grid-menu-label" [title]="sub.label">{{ sub.label }}</span>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- Header 3-dot menu popup -->
+  <div class="bs-grid-menu" *ngIf="menuColumn" [style.left.px]="menuX" [style.top.px]="menuY"
+    [class.bs-grid-menu--flip-sub]="menuFlipSub" (mousedown)="$event.stopPropagation()">
+    <ng-container *ngFor="let item of menuItems">
+      <div class="bs-grid-menu-sep" *ngIf="item.separator"></div>
+      <div class="bs-grid-menu-item" *ngIf="!item.separator && !item.submenu"
+        [class.bs-grid-menu-item--disabled]="item.disabled" (click)="runMenuItem(item)">
+        <span class="bs-grid-menu-icon">{{ item.checked ? '✓' : item.icon || '' }}</span>
+        <span class="bs-grid-menu-label" [title]="item.label">{{ item.label }}</span>
+      </div>
+      <div class="bs-grid-menu-item bs-grid-menu-item--parent" *ngIf="item.submenu">
+        <span class="bs-grid-menu-icon"></span>
+        <span class="bs-grid-menu-label" [title]="item.label">{{ item.label }}</span>
+        <span class="bs-grid-menu-arrow">›</span>
+        <div class="bs-grid-submenu">
+          <div class="bs-grid-menu-item" *ngFor="let sub of item.submenu" (click)="runMenuItem(sub)">
+            <span class="bs-grid-menu-icon">{{ sub.checked ? '✓' : '' }}</span>
+            <span class="bs-grid-menu-label" [title]="sub.label">{{ sub.label }}</span>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+</div>
