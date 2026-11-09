@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.1 (2026-11-09)
+
+- Published from GitHub Actions through npm trusted publishing, with provenance. No code changes.
+
+## 0.1.0 (2026-11-08)
 
 First extraction of BsGrid from the BlockSurvey app into a standalone library, synced with the app's grid as of 2026-10-05.
 
