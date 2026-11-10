@@ -1,9 +1,9 @@
-# @samjoe5994/bs-grid
+# ngx-bs-grid
 
-[![npm version](https://img.shields.io/npm/v/@samjoe5994/bs-grid.svg)](https://www.npmjs.com/package/@samjoe5994/bs-grid)
-[![npm downloads](https://img.shields.io/npm/dm/@samjoe5994/bs-grid.svg)](https://www.npmjs.com/package/@samjoe5994/bs-grid)
+[![npm version](https://img.shields.io/npm/v/ngx-bs-grid.svg)](https://www.npmjs.com/package/ngx-bs-grid)
+[![npm downloads](https://img.shields.io/npm/dm/ngx-bs-grid.svg)](https://www.npmjs.com/package/ngx-bs-grid)
 [![CI](https://github.com/samjoe5994/bs-grid/actions/workflows/ci.yml/badge.svg)](https://github.com/samjoe5994/bs-grid/actions/workflows/ci.yml)
-[![license: MIT](https://img.shields.io/npm/l/@samjoe5994/bs-grid.svg)](https://github.com/samjoe5994/bs-grid/blob/main/LICENSE)
+[![license: MIT](https://img.shields.io/npm/l/ngx-bs-grid.svg)](https://github.com/samjoe5994/bs-grid/blob/main/LICENSE)
 
 **[Live demo](https://samjoe5994.github.io/bs-grid/)** · **[GitHub](https://github.com/samjoe5994/bs-grid)** · **[Changelog](https://github.com/samjoe5994/bs-grid/blob/main/CHANGELOG.md)** · **[Report an issue](https://github.com/samjoe5994/bs-grid/issues)**
 
@@ -32,7 +32,7 @@ MIT licensed. No license key, no watermark, no enterprise tier.
 ## Install
 
 ```bash
-npm install @samjoe5994/bs-grid
+npm install ngx-bs-grid
 ```
 
 Peer deps: Angular 20, 21 or 22 (`@angular/core`, `@angular/common`, `@angular/forms`) and `rxjs` ^7.8.
@@ -51,8 +51,8 @@ Most screens move over by changing the imports and the tag. Column definitions, 
 | --- | --- |
 | `<ag-grid-angular>` | `<bs-grid>` |
 | `AgGridAngular` / `AgGridModule` | `BsGridComponent` (standalone) / `BsGridModule` |
-| `ColDef`, `GridApi`, `GridReadyEvent` from `ag-grid-community` | the same names from `@samjoe5994/bs-grid` |
-| `ICellRendererAngularComp`, `ICellEditorAngularComp` from `ag-grid-angular` | the same names from `@samjoe5994/bs-grid` |
+| `ColDef`, `GridApi`, `GridReadyEvent` from `ag-grid-community` | the same names from `ngx-bs-grid` |
+| `ICellRendererAngularComp`, `ICellEditorAngularComp` from `ag-grid-angular` | the same names from `ngx-bs-grid` |
 | `agNumberColumnFilter`, `agDateColumnFilter`, `agSetColumnFilter`, `agSelectCellEditor`, `agNumberCellEditor`, … | the same string keys |
 
 Check [Not yet supported](#not-yet-supported) before you migrate a screen that uses Enterprise-only row models.
@@ -63,7 +63,7 @@ Standalone component:
 
 ```ts
 import { Component } from '@angular/core';
-import { BsGridComponent, ColDef, GridApi, GridReadyEvent } from '@samjoe5994/bs-grid';
+import { BsGridComponent, ColDef, GridApi, GridReadyEvent } from 'ngx-bs-grid';
 
 @Component({
   selector: 'app-people',
@@ -104,7 +104,7 @@ export class PeopleComponent {
 NgModule app:
 
 ```ts
-import { BsGridModule } from '@samjoe5994/bs-grid';
+import { BsGridModule } from 'ngx-bs-grid';
 
 @NgModule({ imports: [BsGridModule] })
 export class FeatureModule {}
@@ -132,7 +132,7 @@ Any Angular component implementing `ICellRendererAngularComp`:
 
 ```ts
 import { Component } from '@angular/core';
-import { ICellRendererAngularComp, BsCellParams } from '@samjoe5994/bs-grid';
+import { ICellRendererAngularComp, BsCellParams } from 'ngx-bs-grid';
 
 @Component({ template: `<span class="badge">{{ value }}</span>` })
 export class BadgeRenderer implements ICellRendererAngularComp {
@@ -273,7 +273,7 @@ bs-grid {
 A dark theme ships with the package:
 
 ```json
-"styles": ["node_modules/@samjoe5994/bs-grid/styles/bs-grid-dark.css"]
+"styles": ["node_modules/ngx-bs-grid/styles/bs-grid-dark.css"]
 ```
 
 then put `class="bs-grid-dark"` on any ancestor.

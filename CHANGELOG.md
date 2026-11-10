@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2 (2026-11-10)
+
+- Renamed the package to `ngx-bs-grid` (was `@samjoe5994/bs-grid`). Install with `npm i ngx-bs-grid` and change imports from `@samjoe5994/bs-grid` to `ngx-bs-grid`. No code changes.
+
 ## 0.1.1 (2026-11-09)
 
 - Published from GitHub Actions through npm trusted publishing, with provenance. No code changes.

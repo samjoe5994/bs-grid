@@ -1,4 +1,4 @@
-/* Optional dark theme for @samjoe5994/bs-grid.
+/* Optional dark theme for ngx-bs-grid.
    Usage: add to angular.json "styles", then put class="bs-grid-dark" on any ancestor. */
 .bs-grid-dark bs-grid {
   --bs-grid-bg: #17191d;

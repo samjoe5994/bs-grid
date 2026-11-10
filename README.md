@@ -1,12 +1,12 @@
 # bs-grid
 
-[![npm version](https://img.shields.io/npm/v/@samjoe5994/bs-grid.svg)](https://www.npmjs.com/package/@samjoe5994/bs-grid)
+[![npm version](https://img.shields.io/npm/v/ngx-bs-grid.svg)](https://www.npmjs.com/package/ngx-bs-grid)
 [![CI](https://github.com/samjoe5994/bs-grid/actions/workflows/ci.yml/badge.svg)](https://github.com/samjoe5994/bs-grid/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **[Live demo](https://samjoe5994.github.io/bs-grid/)**
 
-Monorepo for **[@samjoe5994/bs-grid](https://www.npmjs.com/package/@samjoe5994/bs-grid)** — a zero-dependency Angular data grid, MIT licensed.
+Monorepo for **[ngx-bs-grid](https://www.npmjs.com/package/ngx-bs-grid)** — a zero-dependency Angular data grid, MIT licensed.
 
 Package docs (install, API, theming): [`projects/bs-grid/README.md`](projects/bs-grid/README.md).
 
@@ -28,7 +28,7 @@ npm run watch:lib      # rebuild the lib on change (run alongside `ng serve demo
 npm test               # unit tests for the library
 ```
 
-The demo imports the library through the `@samjoe5994/bs-grid` path mapping in `tsconfig.json`, which points at `dist/bs-grid` — so **build the library before serving the demo**.
+The demo imports the library through the `ngx-bs-grid` path mapping in `tsconfig.json`, which points at `dist/bs-grid` — so **build the library before serving the demo**.
 
 ## Release
 

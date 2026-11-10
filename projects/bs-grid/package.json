@@ -1,9 +1,10 @@
 {
-  "name": "@samjoe5994/bs-grid",
-  "version": "0.1.1",
+  "name": "ngx-bs-grid",
+  "version": "0.1.2",
   "description": "Fast, dependency-free Angular data grid: virtual scrolling, pinning, sorting, filtering, grouping, editing, range selection, clipboard, pagination, CSV/Excel export. MIT.",
   "keywords": [
     "angular",
+    "ngx",
     "angular-grid",
     "angular-data-grid",
     "angular-table",
